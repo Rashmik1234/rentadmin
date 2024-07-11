@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from "react";
+import { FontAwesome } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { FontAwesome } from "@expo/vector-icons";
 
 const ManageFlats = ({ navigation }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -70,6 +70,10 @@ const ManageFlats = ({ navigation }) => {
       .then((data) => {
         setWings(data);
         setLoadingWings(false);
+        if (data.length > 0) {
+          setSelectedWing(data[0]._id); // Select the first wing by default
+          fetchFlatsForWing(data[0]._id); // Fetch flats for the first wing
+        }
       })
       .catch((error) => {
         console.error("Error fetching wings:", error);
@@ -78,6 +82,7 @@ const ManageFlats = ({ navigation }) => {
   };
 
   const fetchFlatsForWing = (wingId) => {
+    // console.lof
     fetch(
       `https://stock-management-system-server-6mja.onrender.com/api/flats/flats-by-wing/${wingId}`
     )
@@ -210,11 +215,13 @@ const ManageFlats = ({ navigation }) => {
                       <Text style={styles.wingName}>{wing.name}</Text>
                       <TouchableOpacity
                         style={styles.addButton}
-                        onPress={() => addFlat(wing._id)}
+                        onPress={() => {
+                          setSelectedWing(wing._id); // Update selectedWing state
+                          fetchFlatsForWing(wing._id); // Fetch flats for the selected wing
+                        }}
                       >
                         <Text style={styles.addButtonText}>Add Flat</Text>
                       </TouchableOpacity>
-                     
                     </View>
                     <View style={styles.divider} />
                     {wing._id === selectedWing && flats.length > 0 && (
