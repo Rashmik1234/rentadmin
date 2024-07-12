@@ -2,7 +2,6 @@ import { FontAwesome } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -16,18 +15,18 @@ import {
 const ManageFlats = ({ navigation }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [selectedWing, setSelectedWing] = useState(null);
+  const [selectedFlat, setSelectedFlat] = useState(null);
   const [societies, setSocieties] = useState([]);
-  const [wings, setWings] = useState([]);
+  const [wingsBySociety, setWingsBySociety] = useState({});
+  const [flatsByWing, setFlatsByWing] = useState({});
+  const [wingName, setWingName] = useState("");
+  const [flatName, setFlatName] = useState("");
   const [fetchError, setFetchError] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [selectedWing, setSelectedWing] = useState(null);
-  const [loadingWings, setLoadingWings] = useState(true);
-  const [flats, setFlats] = useState([]);
-  const [flatName, setFlatName] = useState("");
-  const [fetchFlatsError, setFetchFlatsError] = useState(null);
-  const [selectedFlat, setSelectedFlat] = useState(null);
-  const [addFlatModalVisible, setAddFlatModalVisible] = useState(false);
+  const [loadingWings, setLoadingWings] = useState(false);
+  const [loadingFlats, setLoadingFlats] = useState(false);
 
   useEffect(() => {
     fetchSocieties();
@@ -46,10 +45,7 @@ const ManageFlats = ({ navigation }) => {
       .then((data) => {
         setSocieties(data);
         setFetchError(null);
-        if (data.length > 0) {
-          fetchWingsForSociety(data[0]._id);
-          setSelectedBuilding(data[0]);
-        }
+        fetchWingsForAllSocieties(data);
       })
       .catch((error) => {
         console.error("Error fetching societies:", error);
@@ -57,27 +53,32 @@ const ManageFlats = ({ navigation }) => {
       });
   };
 
-  const fetchWingsForSociety = (societyId) => {
+  const fetchWingsForAllSocieties = (societies) => {
     setLoadingWings(true);
-    fetch(
-      `https://stock-management-system-server-6mja.onrender.com/api/wings/wings-by-society/${societyId}`
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        setWings(data);
+    const fetchPromises = societies.map((society) =>
+      fetch(
+        `https://stock-management-system-server-6mja.onrender.com/api/wings/wings-by-society/${society._id}`
+      )
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          return { societyId: society._id, wings: data };
+        })
+    );
+
+    Promise.all(fetchPromises)
+      .then((results) => {
+        const wingsBySociety = {};
+        results.forEach(({ societyId, wings }) => {
+          wingsBySociety[societyId] = wings;
+        });
+        setWingsBySociety(wingsBySociety);
         setLoadingWings(false);
-        if (data.length > 0) {
-          setSelectedWing(data[0]._id); // Select the first wing by default
-          fetchFlatsForWing(data[0]._id); // Fetch flats for the first wing
-        }
-        if (data.length > 0) {
-          fetchFlatsForWing(data[0]._id); // Fetch flats for the first wing by default
-        }
+        results.forEach(({ wings }) => fetchFlatsForAllWings(wings));
       })
       .catch((error) => {
         console.error("Error fetching wings:", error);
@@ -85,10 +86,68 @@ const ManageFlats = ({ navigation }) => {
       });
   };
 
-  const fetchFlatsForWing = (wingId) => {
-    // console.lof
+  const fetchFlatsForAllWings = (wings) => {
+    setLoadingFlats(true);
+    const fetchPromises = wings.map((wing) =>
+      fetch(
+        `https://stock-management-system-server-6mja.onrender.com/api/flats/flats-by-wings/${wing._id}`
+      )
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          return { wingId: wing._id, flats: data };
+        })
+    );
+
+    Promise.all(fetchPromises)
+      .then((results) => {
+        // const flatsByWing = {};
+        results.forEach(({ wingId, flats }) => {
+          flatsByWing[wingId] = flats;
+        });
+        setFlatsByWing(flatsByWing);
+        setLoadingFlats(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching flats:", error);
+        setLoadingFlats(false);
+      });
+  };
+
+  const addFlat = () => {
     fetch(
-      `https://stock-management-system-server-6mja.onrender.com/api/flats/flats-by-wing/${wingId}`
+      `https://stock-management-system-server-6mja.onrender.com/api/flats/add-flats-by-wing/${selectedWing._id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: flatName, flat_status: "vaccant" }),
+      }
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to add flat");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        fetchFlatsForWing(selectedWing._id);
+        setIsModalVisible(false);
+        setFlatName("");
+      })
+      .catch((error) => {
+        console.error("Error adding flat:", error);
+      });
+  };
+
+  const fetchFlatsForWing = (wingId) => {
+    fetch(
+      `https://stock-management-system-server-6mja.onrender.com/api/flats/flats-by-wings/${wingId}`
     )
       .then((response) => {
         if (!response.ok) {
@@ -97,50 +156,38 @@ const ManageFlats = ({ navigation }) => {
         return response.json();
       })
       .then((data) => {
-        console.log("Fetched flats:", data); // Log fetched flats
-        setFlats(data);
-        setFetchFlatsError(null);
+        setFlatsByWing((prev) => ({ ...prev, [wingId]: data }));
       })
       .catch((error) => {
-        console.error("Error fetching flats:", error);
-        setFetchFlatsError(error.message);
+        console.error("Error fetching flats for wing:", error);
       });
   };
 
-  const addFlat = async (wingId, flatName) => {
-    try {
-      const response = await fetch(
-        `https://stock-management-system-server-6mja.onrender.com/api/flats/add-flats-by-wing/${wingId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: flatName }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to add flat: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("Flat added successfully", data);
-      fetchFlatsForWing(wingId); // Refresh the flats list
-      setAddFlatModalVisible(false); // Close the modal after adding
-    } catch (error) {
-      console.error("Error adding flat:", error);
-      Alert.alert("Error", `Failed to add flat: ${error.message}`);
+  const editFlat = (flatId, wingId) => {
+    const flatToEdit = flatsByWing[wingId]?.find((flat) => flat._id === flatId);
+    if (!flatToEdit) {
+      console.error("Flat to edit not found");
+      return;
     }
+    setSelectedFlat({ flatId, wingId });
+    setFlatName(flatToEdit.name);
+    setEditModalVisible(true);
   };
 
-  const editFlat = (flatId, newName) => {
+  const updateFlat = () => {
+    if (!selectedFlat || !selectedFlat.flatId || !selectedFlat.wingId) {
+      console.error("Invalid selected flat or wing ID");
+      return;
+    }
+
     fetch(
-      `https://stock-management-system-server-6mja.onrender.com/api/flats/${flatId}`,
+      `https://stock-management-system-server-6mja.onrender.com/api/flats/${selectedFlat.flatId}`,
       {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({ name: flatName }),
       }
     )
       .then((response) => {
@@ -149,19 +196,36 @@ const ManageFlats = ({ navigation }) => {
         }
         return response.json();
       })
-      .then((data) => {
-        fetchFlatsForWing(selectedWing); // Refresh flats list after updating
-        setEditModalVisible(false); // Close edit modal
+      .then((updatedFlat) => {
+        const updatedFlats = flatsByWing[selectedFlat.wingId].map((flat) =>
+          flat._id === selectedFlat.flatId ? updatedFlat : flat
+        );
+        setFlatsByWing((prev) => ({
+          ...prev,
+          [selectedFlat.wingId]: updatedFlats,
+        }));
+        setEditModalVisible(false);
+        setFlatName("");
+        setSelectedFlat(null);
       })
       .catch((error) => {
-        console.error("Error editing flat:", error);
-        Alert.alert("Error", "Failed to update flat. Please try again later.");
+        console.error("Error updating flat:", error);
       });
   };
 
-  const deleteFlat = (flatId) => {
+  const deleteFlat = (flatId, wingId) => {
+    setSelectedFlat({ flatId, wingId });
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDeleteFlat = () => {
+    if (!selectedFlat || !selectedFlat.flatId || !selectedFlat.wingId) {
+      console.error("Invalid selected flat or wing ID");
+      return;
+    }
+
     fetch(
-      `https://stock-management-system-server-6mja.onrender.com/api/flats/${flatId}`,
+      `https://stock-management-system-server-6mja.onrender.com/api/flats/${selectedFlat.flatId}`,
       {
         method: "DELETE",
       }
@@ -172,13 +236,19 @@ const ManageFlats = ({ navigation }) => {
         }
         return response.json();
       })
-      .then((data) => {
-        fetchFlatsForWing(selectedWing); // Refresh flats list after deletion
-        setDeleteModalVisible(false); // Close delete modal
+      .then(() => {
+        const updatedFlats = flatsByWing[selectedFlat.wingId].filter(
+          (flat) => flat._id !== selectedFlat.flatId
+        );
+        setFlatsByWing((prev) => ({
+          ...prev,
+          [selectedFlat.wingId]: updatedFlats,
+        }));
+        setDeleteModalVisible(false);
+        setSelectedFlat(null);
       })
       .catch((error) => {
         console.error("Error deleting flat:", error);
-        Alert.alert("Error", "Failed to delete flat. Please try again later.");
       });
   };
 
@@ -195,124 +265,85 @@ const ManageFlats = ({ navigation }) => {
           <View key={society._id} style={styles.societyContainer}>
             <View style={styles.societyHeader}>
               <Image
-                source={require("../assets/images/building.png")}
-                style={styles.buildingImage}
+                source={{ uri: society.societyImage }}
+                style={styles.societyImage}
               />
               <Text style={styles.societyName}>{society.name}</Text>
             </View>
-            <View style={styles.divider} />
-            {loadingWings ? (
-              <ActivityIndicator size="large" color="#6699CC" />
-            ) : (
-              <>
-                {wings.map((wing) => (
-                  <View key={wing._id}>
-                    <View style={styles.wingContainer}>
-                      <Image
-                        source={require("../assets/images/wing.png")}
-                        style={styles.wingImage}
-                      />
-                      <Text style={styles.wingName}>{wing.name}</Text>
-                      <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => {
-                          setSelectedWing(wing._id); // Update selectedWing state
-                          fetchFlatsForWing(wing._id); // Fetch flats for the selected wing
-                        }}
-                        onPress={() => {
-                          setSelectedWing(wing._id);
-                          setAddFlatModalVisible(true);
-                        }}
-                      >
-                        <Text style={styles.addButtonText}>Add Flat</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.divider} />
-                    {wing._id === selectedWing && (
-                      <ScrollView>
-                        {flats.map((flat) => (
-                          <View key={flat._id} style={styles.flatContainer}>
-                            <Image
-                              source={require("../assets/images/flats.jpg")}
-                              style={styles.flatImage}
-                            />
-                            <Text style={styles.flatName}>{flat.name}</Text>
-                            <View style={styles.flatIcons}>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  setSelectedFlat(flat);
-                                  setEditModalVisible(true);
-                                }}
-                              >
-                                <FontAwesome
-                                  name="edit"
-                                  size={30}
-                                  color="#6699CC"
-                                />
-                              </TouchableOpacity>
 
-                              <TouchableOpacity
-                                onPress={() => {
-                                  setSelectedFlat(flat);
-                                  setDeleteModalVisible(true);
-                                }}
-                              >
-                                <FontAwesome
-                                  name="trash"
-                                  size={30}
-                                  color="red"
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    )}
-                  </View>
-                ))}
-              </>
+            {loadingWings ? (
+              <ActivityIndicator size="small" color="#0000ff" />
+            ) : (
+              (wingsBySociety[society._id] || []).map((wing) => (
+                <View key={wing._id} style={styles.wingContainer}>
+                  <Text style={styles.wingName}>{wing.name}</Text>
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() => {
+                      setSelectedWing(wing);
+                      setIsModalVisible(true);
+                    }}
+                  >
+                    <FontAwesome name="plus" size={20} color="green" />
+                    <Text style={styles.addButtonText}>Add Flat</Text>
+                  </TouchableOpacity>
+
+                  {loadingFlats ? (
+                    <ActivityIndicator size="small" color="#0000ff" />
+                  ) : (
+                    (flatsByWing[wing._id] || []).map((flat) => (
+                      <View key={flat._id} style={styles.flatContainer}>
+                        <Text style={styles.flatName}>{flat.name}</Text>
+                        <TouchableOpacity
+                          onPress={() => editFlat(flat._id, wing._id)}
+                          style={styles.editButton}
+                        >
+                          <FontAwesome name="edit" size={20} color="blue" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => deleteFlat(flat._id, wing._id)}
+                          style={styles.deleteButton}
+                        >
+                          <FontAwesome name="trash" size={20} color="red" />
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  )}
+                </View>
+              ))
             )}
           </View>
         ))}
       </ScrollView>
 
-      {/* Add Flat Modal */}
       <Modal
         animationType="slide"
         transparent={true}
-        visible={addFlatModalVisible}
-        onRequestClose={() => setAddFlatModalVisible(false)}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Flat</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter Flat Name"
+              placeholder="Flat Name"
               value={flatName}
-              onChangeText={(text) => setFlatName(text)}
+              onChangeText={setFlatName}
             />
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  addFlat(selectedWing, flatName);
-                  setFlatName(""); // Clear input after adding
-                }}
-              >
-                <Text style={styles.modalButtonText}>Add</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setAddFlatModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.saveButton} onPress={addFlat}>
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Edit Flat Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -321,33 +352,26 @@ const ManageFlats = ({ navigation }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Flat</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter new Flat Name"
-              value={selectedFlat ? selectedFlat.name : ""}
-              onChangeText={(text) =>
-                setSelectedFlat({ ...selectedFlat, name: text })
-              }
+              placeholder="Flat Name"
+              value={flatName}
+              onChangeText={setFlatName}
             />
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => editFlat(selectedFlat._id, selectedFlat.name)}
-              >
-                <Text style={styles.modalButtonText}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setEditModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.saveButton} onPress={updateFlat}>
+              <Text style={styles.saveButtonText}>Update</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setEditModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Delete Flat Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -356,23 +380,20 @@ const ManageFlats = ({ navigation }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>
-              Are you sure you want to delete this flat?
-            </Text>
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => deleteFlat(selectedFlat._id)}
-              >
-                <Text style={styles.modalButtonText}>Yes</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setDeleteModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>No</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalTitle}>Delete Flat</Text>
+            <Text>Are you sure you want to delete this flat?</Text>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={confirmDeleteFlat}
+            >
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setDeleteModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -383,88 +404,95 @@ const ManageFlats = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#F5FCFF",
+    padding: 16,
+    backgroundColor: "#f0f0f0",
   },
   headerText: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 16,
+    textAlign: "center",
+    color: "#333",
   },
   errorText: {
     color: "red",
+    marginBottom: 16,
+    textAlign: "center",
   },
   scrollView: {
-    paddingVertical: 10,
+    paddingBottom: 16,
   },
   societyContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#6699CC",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 16,
+    backgroundColor: "#fff",
   },
   societyHeader: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    marginBottom: 8,
   },
-  societyName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
-  buildingImage: {
+  societyImage: {
     width: 50,
     height: 50,
+    borderRadius: 25,
+    marginRight: 16,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#CCCCCC",
-    marginVertical: 10,
-  },
-  wingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-  },
-  wingImage: {
-    width: 40,
-    height: 40,
-  },
-  wingName: {
+  societyName: {
     fontSize: 18,
     fontWeight: "bold",
-    marginLeft: 10,
+    color: "#333",
+  },
+  wingContainer: {
+    marginBottom: 16,
+    paddingLeft: 16,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    padding: 12,
+  },
+  wingName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#444",
   },
   addButton: {
-    marginLeft: "auto",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: "#6699CC",
-    borderRadius: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
   addButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+    marginLeft: 8,
+    color: "green",
+    fontWeight: "bold",
   },
   flatContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-  },
-  flatImage: {
-    width: 30,
-    height: 30,
+    marginBottom: 8,
+    paddingLeft: 16,
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
   flatName: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
+    color: "#333",
   },
-  flatIcons: {
-    flexDirection: "row",
-    marginLeft: "auto",
+  editButton: {
+    marginRight: 8,
+    padding: 8,
+    borderRadius: 8,
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
   },
   modalContainer: {
     flex: 1,
@@ -473,40 +501,54 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    width: 300,
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    alignItems: "center",
+    width: "80%",
+    padding: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
   },
-  input: {
-    width: "100%",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  modalButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  modalButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: "#6699CC",
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  modalButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-  modalText: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 16,
+    textAlign: "center",
+    color: "#333", // Darker text color
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+    color: "#333", // Darker text color
+  },
+  saveButton: {
+    backgroundColor: "green",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  saveButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: "red",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  deleteButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 

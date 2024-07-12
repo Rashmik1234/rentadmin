@@ -133,7 +133,6 @@ const ManageWings = ({ navigation }) => {
   };
 
   const editWing = (wingId, societyId) => {
-    console.log(wingId + "==" + societyId);
     const wingToEdit = wingsBySociety[societyId].find(
       (wing) => wing._id === wingId
     );

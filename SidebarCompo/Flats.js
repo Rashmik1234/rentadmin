@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
+  Alert,
   Image,
   Modal,
-  TouchableOpacity,
-  TextInput,
   ScrollView,
-  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const API_URL = "https://stock-management-system-server-6mja.onrender.com";
@@ -39,7 +39,7 @@ const Flats = ({ route, navigation }) => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name: flatName }),
+          body: JSON.stringify({ name: flatName, flat_status: "vaccant" }),
         }
       );
 

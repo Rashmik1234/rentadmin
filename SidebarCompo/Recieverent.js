@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
+  Image,
   StyleSheet,
   Text,
   View,
-  FlatList,
-  ActivityIndicator,
-  Image,
 } from "react-native";
 
 const Recieverent = () => {
@@ -25,7 +25,6 @@ const Recieverent = () => {
         }
 
         const data = await response.json();
-        console.log(data); // Log the response data
         setRentPaidTenants(data);
         setLoading(false);
       } catch (error) {

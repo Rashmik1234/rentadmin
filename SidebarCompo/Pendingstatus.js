@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
+  Image,
   StyleSheet,
   Text,
   View,
-  FlatList,
-  ActivityIndicator,
-  Image,
 } from "react-native";
 
 const Pendingstatus = () => {
@@ -25,7 +25,6 @@ const Pendingstatus = () => {
         }
 
         const data = await response.json();
-        console.log(data); // Log the response data
         setRentPendingTenants(data);
         setLoading(false);
       } catch (error) {

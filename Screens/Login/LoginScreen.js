@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
-  View,
   TextInput,
   TouchableOpacity,
+  View,
 } from "react-native";
 
 const LoginScreen = ({ navigation }) => {
@@ -12,12 +12,6 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    // Implement your login logic here, e.g., authentication with server
-
-    // For demo purposes, log the username and password to console
-    console.log("Username:", username);
-    console.log("Password:", password);
-
     // Navigate to Home screen upon successful login
     navigation.navigate("Home");
   };

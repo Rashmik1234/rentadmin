@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
+  Image,
   StyleSheet,
   Text,
   View,
-  Image,
-  FlatList,
-  ActivityIndicator,
 } from "react-native";
 
 const EmptyFlats = () => {
@@ -19,7 +19,6 @@ const EmptyFlats = () => {
           "https://stock-management-system-server-6mja.onrender.com/api/flats/vaccant"
         );
         const data = await response.json();
-        console.log(data); // Log the response data
         setVacantFlats(data); // Set the array of vacant flats
         setLoading(false);
       } catch (error) {

@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useNavigation } from "@react-navigation/native";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
@@ -8,10 +10,8 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Easing,
 } from "react-native";
 import { Bars3CenterLeftIcon, BellIcon } from "react-native-heroicons/solid";
-import { useNavigation } from "@react-navigation/native";
 
 const propStyle = (percent) => {
   const base_degrees = -135;
@@ -108,13 +108,6 @@ const HomeScreen = () => {
         const rentReceivedText = await rentReceivedResponse.text();
         const rentPendingText = await rentPendingResponse.text();
 
-        console.log("societiesText:", societiesText);
-        console.log("flatsText:", flatsText);
-        console.log("flatsOnRentText:", flatsOnRentText);
-        console.log("emptyFlatsText:", emptyFlatsText);
-        console.log("rentReceivedText:", rentReceivedText);
-        console.log("rentPendingText:", rentPendingText);
-       
         const societiesData = JSON.parse(societiesText);
         const flatsData = JSON.parse(flatsText);
         const flatsOnRentData = JSON.parse(flatsOnRentText);
@@ -122,72 +115,76 @@ const HomeScreen = () => {
         const rentReceivedData = JSON.parse(rentReceivedText);
         const rentPendingData = JSON.parse(rentPendingText);
 
-      setBlocks([{
-        key: 1,
-        label: "Total Buildings",
-        value: societiesData.totalSocieties,
-        maxValue: 10,
-        percent: 100,
-        style: styles.block1,        
-        screen: "Totalbuildings",
-      },{
-        key: 2,
-        label: "Total Flat/Rooms",
-        value: flatsData.totalFlats,
-        maxValue: 200,
-        percent: 100,
-        style: styles.block2,
-        screen: "Room",
-      },
-      {
-        key: 3,
-        label: "Flat On Rent",
-        value: flatsOnRentData.noOfFlatsOnRent,
-        maxValue: 200,
-        percent: (
-          (flatsOnRentData.noOfFlatsOnRent / flatsData.totalFlats) *
-          100
-        ).toFixed(1),
-        style: styles.block3,
-        screen: "Flats",
-      },
-      {
-        key: 4,
-        label: "Empty Flat",
-        value: emptyFlatsData.noOfVaccantFlats,
-        maxValue: 200,
-        percent: (
-          ( emptyFlatsData.noOfVaccantFlats / flatsData.totalFlats) *
-          100
-        ).toFixed(1),
-        style: styles.block4,
-        screen: "Emptyflats",
-      }, {
-        key: 5,
-        label: "Pending Status",
-        value: rentPendingData.noOfFlatsRentPending,
-              maxValue: 10,
-              percent: (
-                ( rentPendingData.noOfFlatsRentPending /
-                  flatsOnRentData.noOfFlatsOnRent) *
-                100
-              ).toFixed(1),
-        style: styles.block5,
-        screen: "Pendingstatus",
-      },
-      {
-        key: 6,
-        label: "Month Rent Received",
-        value: rentReceivedData.noOfFlatsRentReceived,
-        maxValue: 10,
-        percent: 
-          ( (rentReceivedData.noOfFlatsRentReceived /
-            flatsOnRentData.noOfFlatsOnRent) *
-          100
-        ).toFixed(1),
-        style: styles.block6,
-        screen: "Recieverent",
-      }])
+        setBlocks([
+          {
+            key: 1,
+            label: "Total Buildings",
+            value: societiesData.totalSocieties,
+            maxValue: 10,
+            percent: 100,
+            style: styles.block1,
+            screen: "Totalbuildings",
+          },
+          {
+            key: 2,
+            label: "Total Flat/Rooms",
+            value: flatsData.totalFlats,
+            maxValue: 200,
+            percent: 100,
+            style: styles.block2,
+            screen: "Room",
+          },
+          {
+            key: 3,
+            label: "Flat On Rent",
+            value: flatsOnRentData.noOfFlatsOnRent,
+            maxValue: 200,
+            percent: (
+              (flatsOnRentData.noOfFlatsOnRent / flatsData.totalFlats) *
+              100
+            ).toFixed(1),
+            style: styles.block3,
+            screen: "Flats",
+          },
+          {
+            key: 4,
+            label: "Empty Flat",
+            value: emptyFlatsData.noOfVaccantFlats,
+            maxValue: 200,
+            percent: (
+              (emptyFlatsData.noOfVaccantFlats / flatsData.totalFlats) *
+              100
+            ).toFixed(1),
+            style: styles.block4,
+            screen: "Emptyflats",
+          },
+          {
+            key: 5,
+            label: "Pending Status",
+            value: rentPendingData.noOfFlatsRentPending,
+            maxValue: 10,
+            percent: (
+              (rentPendingData.noOfFlatsRentPending /
+                flatsOnRentData.noOfFlatsOnRent) *
+              100
+            ).toFixed(1),
+            style: styles.block5,
+            screen: "Pendingstatus",
+          },
+          {
+            key: 6,
+            label: "Month Rent Received",
+            value: rentReceivedData.noOfFlatsRentReceived,
+            maxValue: 10,
+            percent: (
+              (rentReceivedData.noOfFlatsRentReceived /
+                flatsOnRentData.noOfFlatsOnRent) *
+              100
+            ).toFixed(1),
+            style: styles.block6,
+            screen: "Recieverent",
+          },
+        ]);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -196,11 +193,10 @@ const HomeScreen = () => {
     fetchData();
   }, []);
 
-  const [blocks, setBlocks] = useState([  ]);
+  const [blocks, setBlocks] = useState([]);
 
   const handleBlockPressIn = (blockNumber) => {
     setHoveredBlock(blockNumber);
-    console.log("Block entered");
   };
 
   const handleBlockPressOut = () => {
